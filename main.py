@@ -37,8 +37,6 @@ except Exception as e:
     log.error(f"FATAL: No se pudo conectar a las bases de datos: {e}")
     sys.exit(1)
 
-
-# --- PUNTO DE ENTRADA PRINCIPAL ---
 if __name__ == "__main__":
     
     servicio = ServicioAseguradora(db, redis_client)

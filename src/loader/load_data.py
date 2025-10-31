@@ -81,19 +81,32 @@ try:
         
         polizas_collection.insert_one(poliza_doc)
         
-        
-        redis_client.hincrby('agente:stats', poliza['id_agente'], 1)
-        
-        redis_client.zincrby('ranking:clientes:cobertura', poliza['cobertura_total'], poliza['id_cliente'])
-        
-        if poliza['estado'] == 'activa':
-            fecha_inicio_dt = datetime.strptime(poliza['fecha_inicio'], '%Y-%m-%d')
-            timestamp = int(time.mktime(fecha_inicio_dt.timetuple()))
+        try:
+            id_agente_key = str(int(poliza['id_agente']))
+            redis_client.hincrby('agente:stats', id_agente_key, 1)
             
-            redis_client.zadd('idx:polizas:activas', {poliza['nro_poliza']: timestamp})
+            id_cliente_key = str(int(poliza['id_cliente']))
+            redis_client.zincrby('ranking:clientes:cobertura', 
+                                  poliza['cobertura_total'], 
+                                  id_cliente_key)
+
+        except ValueError:
+            log.warning(f"ID de agente/cliente no numérico en póliza {poliza['nro_poliza']}. Saltando.")
+
+        if poliza['estado'].lower() == 'activa': 
+            try:
+                fecha_inicio_dt = datetime.strptime(poliza['fecha_inicio'], '%d/%m/%Y') 
+                timestamp = int(time.mktime(fecha_inicio_dt.timetuple()))
+                
+                redis_client.zadd('idx:polizas:activas', {str(poliza['nro_poliza']): timestamp})
+            
+            except ValueError as e:
+                log.warning(f"Fecha en formato incorrecto para póliza {poliza['nro_poliza']}: {e}")
+            except Exception as e:
+                log.error(f"Error procesando timestamp para póliza {poliza['nro_poliza']}: {e}")
 
     log.info(f"-> {polizas_collection.count_documents({})} pólizas cargadas en MongoDB.")
-    log.info("-> Contadores y rankings de Redis actualizados.")
+    log.info("-> Contadores y rankings de Redis actualizados (corregido).")
     log.info("¡Carga de datos completada con éxito!")
 
 except FileNotFoundError as e:
