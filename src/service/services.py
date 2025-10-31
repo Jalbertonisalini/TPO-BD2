@@ -535,3 +535,56 @@ class ServicioAseguradora:
         
         return list(self.db.siniestros.aggregate(pipeline))
     
+    def q13_abm_clientes(self, accion, datos=None, cliente_id=None):
+            """13. ABM de clientes (Alta, Baja, Modificación)"""
+            log.info(f"EJECUTANDO S13 (Mongo): ABM Cliente - {accion}")
+            
+            try:
+                # --- ALTA (Crear) ---
+                if accion == 'alta' and datos:
+                    # Verificación: Asegurarse de que el id_cliente no exista ya
+                    if self.db.clientes.find_one({'id_cliente': datos['id_cliente']}):
+                        log.warning(f"ABM Alta: id_cliente {datos['id_cliente']} ya existe.")
+                        return f"Error: id_cliente {datos['id_cliente']} ya existe."
+                    
+                    if 'activo' not in datos:
+                        datos['activo'] = True
+                    if 'vehiculos' not in datos:
+                        datos['vehiculos'] = []
+
+                    result = self.db.clientes.insert_one(datos)
+                    return f"Cliente creado con ID de Mongo: {result.inserted_id}"
+
+                # --- MODIFICACIÓN (Actualizar) ---
+                elif accion == 'modificar' and cliente_id and datos:
+                    result = self.db.clientes.update_one(
+                        { 'id_cliente': cliente_id },
+                        { '$set': datos }
+                    )
+                    if result.matched_count == 0:
+                        log.warning(f"ABM Modificar: No se encontró cliente con ID {cliente_id}.")
+                        return f"Error: No se encontró el cliente con ID {cliente_id} para modificar."
+                    
+                    return f"Cliente ID {cliente_id} modificado. Documentos afectados: {result.modified_count}"
+
+                # --- BAJA (Borrado Lógico) ---
+                elif accion == 'baja' and cliente_id:
+                    result = self.db.clientes.update_one(
+                        { 'id_cliente': cliente_id },
+                        { '$set': { 'activo': False } }
+                    )
+                    if result.matched_count == 0:
+                        log.warning(f"ABM Baja: No se encontró cliente con ID {cliente_id}.")
+                        return f"Error: No se encontró el cliente con ID {cliente_id} para dar de baja."
+                    
+                    return f"Cliente ID {cliente_id} dado de baja (lógica). Documentos afectados: {result.modified_count}"
+
+                # --- Error de input ---
+                else:
+                    log.error(f"ABM Acción '{accion}' no válida o faltan datos.")
+                    return "Acción ABM no válida o faltan datos (se requiere accion, cliente_id y/o datos)."
+
+            except Exception as e:
+                log.error(f"Error inesperado en ABM Clientes: {e}")
+                return f"Error inesperado en ABM Clientes: {e}"
+        

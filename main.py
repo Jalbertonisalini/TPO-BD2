@@ -4,23 +4,19 @@ import sys
 import os
 from pymongo import MongoClient
 import redis
-from pprint import pprint # Para imprimir diccionarios y listas de forma legible
+from pprint import pprint
 
-# --- Hack de Ruta para Imports ---
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 if PROJECT_ROOT not in sys.path:
     sys.path.append(PROJECT_ROOT)
-# ---------------------------------
 
 from src.logger import getLogger
 from src.service.services import ServicioAseguradora
 
-# --- Configuración de Conexión ---
 MONGO_HOST = "mongo"
 REDIS_HOST = "redis"
 DB_NAME = "aseguradora_db"
 
-# --- Conexión Global ---
 log = getLogger("QUERY_RUNNER")
 
 try:
@@ -37,24 +33,92 @@ except Exception as e:
     log.error(f"FATAL: No se pudo conectar a las bases de datos: {e}")
     sys.exit(1)
 
+def ejecutar_demo_abm(servicio: ServicioAseguradora):
+    """Lanza un mini-wizard interactivo para probar el ABM de Clientes."""
+    log.info("--- (S13: ABM Clientes Interactivo) ---")
+    print("\n--- Módulo ABM de Clientes ---")
+    
+    accion = input("¿Qué acción desea realizar? (alta / modificar / baja): ").strip().lower()
+
+    try:
+        if accion == 'alta':
+            log.info("Modo: ALTA de Cliente")
+            print("--- Creando nuevo cliente (Formulario Completo) ---")
+            
+            id_cliente = int(input("  ID Cliente (ej. 999): ").strip())
+            nombre = input("  Nombre: ").strip()
+            apellido = input("  Apellido: ").strip()
+            dni = input("  DNI: ").strip()
+            email = input("  Email: ").strip()
+            telefono = input("  Teléfono: ").strip()
+            direccion = input("  Dirección: ").strip()
+            ciudad = input("  Ciudad: ").strip()
+            provincia = input("  Provincia: ").strip()
+            
+            datos_nuevos = {
+                "id_cliente": id_cliente,
+                "nombre": nombre,
+                "apellido": apellido,
+                "dni": dni,
+                "email": email,
+                "telefono": telefono,
+                "direccion": direccion,
+                "ciudad": ciudad,
+                "provincia": provincia,
+                "activo": True,
+                "vehiculos": []
+            }
+            
+            resultado = servicio.q13_abm_clientes(accion='alta', datos=datos_nuevos)
+            pprint(resultado)
+
+        elif accion == 'modificar':
+            log.info("Modo: MODIFICAR Cliente")
+            print("--- Modificando cliente existente ---")
+            
+            cliente_id = int(input("  ID del Cliente a modificar: ").strip())
+            campo = input("  Nombre del campo a modificar (ej. telefono, email, ciudad): ").strip().lower()
+            valor = input(f"  Nuevo valor para '{campo}': ").strip()
+            
+            datos_modificados = { campo: valor }
+            
+            resultado = servicio.q13_abm_clientes(accion='modificar', cliente_id=cliente_id, datos=datos_modificados)
+            pprint(resultado)
+
+        elif accion == 'baja':
+            log.info("Modo: BAJA (lógica) de Cliente")
+            print("--- Dando de baja a un cliente ---")
+            
+            cliente_id = int(input("  ID del Cliente a dar de baja (lógica): ").strip())
+            
+            resultado = servicio.q13_abm_clientes(accion='baja', cliente_id=cliente_id)
+            pprint(resultado)
+            
+        else:
+            log.warning(f"Acción '{accion}' no reconocida.")
+            print(f"Error: Acción no válida. Debe ser 'alta', 'modificar' o 'baja'.")
+
+    except ValueError:
+        log.error("Error: El ID del cliente debe ser un número.")
+        print("Error: El ID del cliente debe ser un número.")
+    except Exception as e:
+        log.error(f"Error inesperado en el wizard ABM: {e}")
+        pprint(f"Ocurrió un error: {e}")
+
+
 if __name__ == "__main__":
     
     servicio = ServicioAseguradora(db, redis_client)
     
-    # Verificamos si se pasó un argumento
     if len(sys.argv) < 2:
         log.error("¡Error! Debes especificar un número de query para correr.")
         log.error("Usa el menú 'Run and Debug' de VS Code para elegir una query.")
         sys.exit(1)
         
-    # El primer argumento (sys.argv[0]) es el nombre del script,
-    # el que nos interesa es el segundo (sys.argv[1])
     query_num = sys.argv[1]
     
     log.info(f"--- Ejecutando Query/Servicio N° {query_num} ---")
-    
-    # --- Mapeo de argumentos a funciones ---
-    
+        
     if query_num == '1':
         pprint(servicio.q1_clientes_activos_con_polizas())
     
@@ -92,37 +156,12 @@ if __name__ == "__main__":
         pprint(servicio.q12_agentes_y_siniestros_asociados())
         
     elif query_num == '13':
-        log.info("--- (ABM Clientes): Dando de ALTA a cliente 999 ---")
-        pprint(servicio.q13_abm_clientes('alta', datos={
-            "id_cliente": 999, "nombre": "Cliente", "apellido": "Prueba ABM", "dni": 123456,
-            "email": "prueba@demo.com", "telefono": "555-1234", "activo": True, "vehiculos": []
-        }))
-        log.info("--- (ABM Clientes): MODIFICANDO teléfono de cliente 999 ---")
-        pprint(servicio.q13_abm_clientes('modificar', cliente_id=999, datos={'telefono': '555-9876'}))
-        log.info("--- (ABM Clientes): Dando de BAJA (lógica) a cliente 999 ---")
-        pprint(servicio.q13_abm_clientes('baja', cliente_id=999))
-        
-    elif query_num == '14':
-        log.info("--- (Alta Siniestro) ---")
-        pprint(servicio.q14_alta_siniestro({
-            "id_siniestro": 901, "nro_poliza": 1001, "fecha": "2025-10-31", "tipo": "Robo",
-            "monto_estimado": 7500, "descripcion": "Robo en vía pública (demo)", "estado": "abierto"
-        }))
-        
-    elif query_num == '15':
-        log.info("--- (Emisión de Póliza) ---")
-        pprint(servicio.q15_emitir_poliza({
-            "nro_poliza": 901, "id_cliente": 1, "tipo": "Total", "fecha_inicio": "2025-11-01",
-            "fecha_fin": "2026-11-01", "prima_mensual": 300, "cobertura_total": 60000,
-            "id_agente": 1, "estado": "activa"
-        }))
-    
+        ejecutar_demo_abm(servicio)
     else:
         log.error(f"Número de query '{query_num}' no válido. Debe ser de 1 a 15.")
 
     log.info(f"--- Fin de Query/Servicio N° {query_num} ---")
     
-    # --- Cierre de Conexiones ---
     mongo_client.close()
     redis_client.close()
     log.info("Conexiones a BBDD cerradas.")
