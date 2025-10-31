@@ -1,0 +1,20 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Paso 1: Cargar Datos",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "src.loader.load_data",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Q 1: Clientes activos con pólizas",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/main.py",
+      "args": ["1"],
+      "console": "integratedTerminal"
+    }
+  ]
+}

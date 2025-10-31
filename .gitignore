@@ -1,0 +1,27 @@
+# --- Python "porquerias" ---
+# 1. La que pediste: Bytecode compilado y carpetas de cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# 2. Entornos virtuales (deben ser locales)
+# Estos directorios son enormes y específicos de cada máquina
+venv/
+.venv/
+env/
+.env/
+
+# 3. Archivos de variables de entorno (¡Contienen secretos!)
+# NUNCA subas tus contraseñas o claves de API
+.env
+.env.*
+!.env.example  # A menos que sea un archivo de ejemplo sin secretos
+
+# 4. Archivos de empaquetado y distribución
+build/
+dist/
+*.egg-info/
+/htmlcov/
+
