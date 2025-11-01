@@ -536,7 +536,6 @@ class ServicioAseguradora:
         return list(self.db.siniestros.aggregate(pipeline))
     
     def q13_abm_clientes(self, accion, datos=None, cliente_id=None):
-            """13. ABM de clientes (Alta, Baja, Modificación)"""
             log.info(f"EJECUTANDO S13 (Mongo): ABM Cliente - {accion}")
             
             try:
@@ -588,3 +587,75 @@ class ServicioAseguradora:
                 log.error(f"Error inesperado en ABM Clientes: {e}")
                 return f"Error inesperado en ABM Clientes: {e}"
         
+    def q14_alta_siniestro(self, datos_siniestro):
+        """14. Alta de nuevos siniestros (Versión Revertida: guarda fechas como string)"""
+        log.info("EJECUTANDO S14 (Mongo): Alta Siniestro")
+            
+        try:
+            poliza = self.db.polizas.find_one({'nro_poliza': datos_siniestro['nro_poliza']})
+            if not poliza:
+                log.warning(f"Alta Siniestro: Nro de póliza {datos_siniestro['nro_poliza']} no existe.")
+                return "Error: La póliza asociada no existe."
+
+            if self.db.siniestros.find_one({'id_siniestro': datos_siniestro['id_siniestro']}):
+                log.warning(f"Alta Siniestro: id_siniestro {datos_siniestro['id_siniestro']} ya existe.")
+                return "Error: id_siniestro ya existe."
+                
+            result = self.db.siniestros.insert_one(datos_siniestro)
+            return f"Siniestro creado con ID de Mongo: {result.inserted_id}"
+        
+        except Exception as e:
+            log.error(f"Error en Alta Siniestro: {e}")
+            return f"Error en Alta Siniestro: {e}"
+        
+    def q15_emitir_poliza(self, datos_poliza):
+        """15. Emisión de Póliza (Versión Revertida: guarda fechas como string)"""
+        log.info("EJECUTANDO S15 (Mongo + Redis): Emisión de Póliza")
+        
+        try:
+            # 1. Validaciones
+            cliente = self.db.clientes.find_one({ 'id_cliente': datos_poliza['id_cliente'] })
+            agente = self.db.agentes.find_one({ 'id_agente': datos_poliza['id_agente'] })
+            
+            if not cliente or not agente:
+                return "Error: Cliente o Agente no existen."
+            if not cliente['activo'] or not agente['activo']:
+                return "Error: Cliente o Agente no están activos."
+            
+            if self.db.polizas.find_one({'nro_poliza': datos_poliza['nro_poliza']}):
+                return "Error: nro_poliza ya existe."
+
+            # 2. --- CONVERSIÓN DE FECHA ELIMINADA ---
+            # Las fechas se guardan como string, tal como vienen de 'datos_poliza'
+
+            # 3. Insertar en Mongo
+            result = self.db.polizas.insert_one(datos_poliza)
+            poliza_id_mongo = result.inserted_id
+            log.info(f"Póliza {datos_poliza['nro_poliza']} insertada en MongoDB.")
+            
+            # 4. Actualizar Redis
+            try:
+                self.r.hincrby('agente:stats', str(datos_poliza['id_agente']), 1)
+                
+                self.r.zincrby('ranking:clientes:cobertura', 
+                               datos_poliza['cobertura_total'], 
+                               str(datos_poliza['id_cliente']))
+                
+                if str(datos_poliza['estado']).lower() == 'activa':
+                    # --- ¡ADVERTENCIA! ESTE BLOQUE AHORA FALLARÁ ---
+                    # Necesita convertir el string a datetime para sacar el timestamp
+                    # (ver explicación abajo)
+                    fecha_dt_para_redis = datetime.strptime(datos_poliza['fecha_inicio'], '%d/%m/%Y')
+                    timestamp = int(time.mktime(fecha_dt_para_redis.timetuple()))
+                    self.r.zadd('idx:polizas:activas', {str(datos_poliza['nro_poliza']): timestamp})
+                
+                log.info(f"Póliza {datos_poliza['nro_poliza']} actualizada en vistas de Redis.")
+                return f"Póliza emitida. Mongo ID: {poliza_id_mongo}. Vistas de Redis actualizadas."
+                
+            except Exception as e_redis:
+                log.error(f"Error CRÍTICO actualizando Redis. Póliza {poliza_id_mongo} insertada en Mongo pero Redis falló: {e_redis}")
+                return f"Error CRÍTICO: Póliza insertada en Mongo ({poliza_id_mongo}) pero falló la actualización en Redis."
+        
+        except Exception as e:
+            log.error(f"Error en Emisión de Póliza: {e}")
+            return f"Error en Emisión de Póliza: {e}"

@@ -6,19 +6,23 @@ from pymongo import MongoClient
 import redis
 from pprint import pprint
 
+# --- Hack de Ruta para Imports ---
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 if PROJECT_ROOT not in sys.path:
     sys.path.append(PROJECT_ROOT)
+# ---------------------------------
 
 from src.logger import getLogger
 from src.service.services import ServicioAseguradora
 
+# --- Configuración de Conexión ---
 MONGO_HOST = "mongo"
 REDIS_HOST = "redis"
 DB_NAME = "aseguradora_db"
 
 log = getLogger("QUERY_RUNNER")
 
+# --- Conexión Global ---
 try:
     log.info("Conectando a bases de datos...")
     mongo_client = MongoClient(MONGO_HOST, 27017, serverSelectionTimeoutMS=5000)
@@ -33,8 +37,8 @@ except Exception as e:
     log.error(f"FATAL: No se pudo conectar a las bases de datos: {e}")
     sys.exit(1)
 
+# --- (Wizard para ABM Clientes - Q13) ---
 def ejecutar_demo_abm(servicio: ServicioAseguradora):
-    """Lanza un mini-wizard interactivo para probar el ABM de Clientes."""
     log.info("--- (S13: ABM Clientes Interactivo) ---")
     print("\n--- Módulo ABM de Clientes ---")
     
@@ -105,6 +109,85 @@ def ejecutar_demo_abm(servicio: ServicioAseguradora):
         log.error(f"Error inesperado en el wizard ABM: {e}")
         pprint(f"Ocurrió un error: {e}")
 
+def ejecutar_demo_siniestro(servicio: ServicioAseguradora):
+    """Lanza un mini-wizard interactivo para el alta de Siniestros."""
+    log.info("--- (S14: Alta Siniestro Interactivo) ---")
+    print("\n--- Módulo de Alta de Siniestros ---")
+    
+    try:
+        log.info("Modo: ALTA de Siniestro")
+        print("--- Registrando nuevo siniestro ---")
+        
+        id_siniestro = int(input("  ID Siniestro (ej. 901): ").strip())
+        nro_poliza = input("  Nro. de Póliza asociada (ej. POL1001): ").strip().upper()
+        fecha = input("  Fecha (DD/MM/YYYY): ").strip()
+        tipo = input("  Tipo (ej. Accidente, Robo): ").strip()
+        monto_estimado = float(input("  Monto estimado (ej. 150000): ").strip())
+        descripcion = input("  Descripción: ").strip()
+        estado = input("  Estado (ej. abierto, en proceso): ").strip()
+        
+        datos_nuevos = {
+            "id_siniestro": id_siniestro,
+            "nro_poliza": nro_poliza,
+            "fecha": fecha,
+            "tipo": tipo,
+            "monto_estimado": monto_estimado,
+            "descripcion": descripcion,
+            "estado": estado
+        }
+        
+        resultado = servicio.q14_alta_siniestro(datos_nuevos)
+        pprint(resultado)
+
+    except ValueError:
+        log.error("Error: ID/Monto deben ser numéricos.")
+        print("Error: El ID Siniestro y el Monto deben ser numéricos.")
+    except Exception as e:
+        log.error(f"Error inesperado en el wizard de Siniestros: {e}")
+        pprint(f"Ocurrió un error: {e}")
+
+def ejecutar_demo_poliza(servicio: ServicioAseguradora):
+    """Lanza un mini-wizard interactivo para la Emisión de Pólizas."""
+    log.info("--- (S15: Emisión de Póliza Interactivo) ---")
+    print("\n--- Módulo de Emisión de Pólizas ---")
+    
+    try:
+        log.info("Modo: ALTA de Póliza")
+        print("--- Registrando nueva póliza ---")
+
+        # --- CORRECCIONES ---
+        nro_poliza = input("  Nro. de Póliza (ej. POL901): ").strip().upper()
+        id_cliente = int(input("  ID Cliente asociado: ").strip())
+        id_agente = int(input("  ID Agente asociado: ").strip())
+        tipo = input("  Tipo (ej. Auto, Vida): ").strip()
+        fecha_inicio = input("  Fecha de Inicio (DD/MM/YYYY): ").strip()
+        fecha_fin = input("  Fecha de Fin (DD/MM/YYYY): ").strip()
+        prima_mensual = float(input("  Prima Mensual: ").strip())
+        cobertura_total = float(input("  Cobertura Total: ").strip())
+        estado = input("  Estado (ej. activa, suspendida): ").strip()
+
+        datos_nuevos = {
+            "nro_poliza": nro_poliza,
+            "id_cliente": id_cliente,
+            "tipo": tipo,
+            "fecha_inicio": fecha_inicio,
+            "fecha_fin": fecha_fin,
+            "prima_mensual": prima_mensual,
+            "cobertura_total": cobertura_total,
+            "id_agente": id_agente,
+            "estado": estado
+        }
+        
+        resultado = servicio.q15_emitir_poliza(datos_nuevos)
+        pprint(resultado)
+
+    except ValueError:
+        log.error("Error: IDs/Montos deben ser numéricos.")
+        print("Error: IDs y Montos deben ser numéricos.")
+    except Exception as e:
+        log.error(f"Error inesperado en el wizard de Pólizas: {e}")
+        pprint(f"Ocurrió un error: {e}")
+
 
 if __name__ == "__main__":
     
@@ -157,6 +240,14 @@ if __name__ == "__main__":
         
     elif query_num == '13':
         ejecutar_demo_abm(servicio)
+
+    # --- CORREGIDO: Llamamos a los wizards interactivos ---
+    elif query_num == '14':
+        ejecutar_demo_siniestro(servicio)
+        
+    elif query_num == '15':
+        ejecutar_demo_poliza(servicio)
+    
     else:
         log.error(f"Número de query '{query_num}' no válido. Debe ser de 1 a 15.")
 
