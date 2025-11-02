@@ -1,5 +1,14 @@
 # src/loader/load_data.py
 
+import sys
+import os
+
+script_path = os.path.abspath(__file__)
+src_dir = os.path.dirname(os.path.dirname(script_path))
+project_root = os.path.dirname(src_dir)
+if project_root not in sys.path:
+    sys.path.append(project_root)
+
 from src.logger import getLogger
 import pandas as pd
 from pymongo import MongoClient
@@ -44,7 +53,6 @@ except Exception as e:
     log.error(f"Error durante la limpieza de bases de datos: {e}")
 
 try:
-    # Leemos todos los datasets con Pandas
     df_clientes = pd.read_csv(CSV_BASE_PATH + 'clientes.csv')
     df_vehiculos = pd.read_csv(CSV_BASE_PATH + 'vehiculos.csv')
     df_agentes = pd.read_csv(CSV_BASE_PATH + 'agentes.csv')
@@ -95,6 +103,7 @@ try:
 
         if poliza['estado'].lower() == 'activa': 
             try:
+                # (Tenemos que parsear la fecha aquí solo para Redis)
                 fecha_inicio_dt = datetime.strptime(poliza['fecha_inicio'], '%d/%m/%Y') 
                 timestamp = int(time.mktime(fecha_inicio_dt.timetuple()))
                 
