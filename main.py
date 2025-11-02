@@ -135,13 +135,22 @@ if __name__ == "__main__":
                 log.error(f"Acción '{accion}' no reconocida. Debe ser 'alta', 'modificar' o 'baja'.")
 
         except IndexError:
-            log.error("Error de ABM: Faltan argumentos de línea de comando.")
-            print("Error: Faltan argumentos. Verifique el uso de la Q13.")
+            print("\n--- Ayuda: Servicio ABM de Clientes (Q13) ---")
+            print("Error: Faltan argumentos. Debe especificar una acción.")
+            print("\nFormatos de uso:")
+            print("  1. ALTA:")
+            print("     python main.py 13 alta <id> <nombre> <apellido> <dni> <email> <tel> <dir> <ciudad> <prov>")
+            print("\n  2. MODIFICAR:")
+            print("     python main.py 13 modificar <id_cliente> <campo> \"<nuevo_valor>\"")
+            print("\n  3. BAJA:")
+            print("     python main.py 13 baja <id_cliente>")
+            
         except ValueError:
             log.error("Error: El id_cliente (argumento 3) debe ser un número.")
         except Exception as e:
             log.error(f"Error inesperado en ABM: {e}")
 
+            
     elif query_num == '14':
         log.info("--- (S14: Alta Siniestro por CLI) ---")
         try:

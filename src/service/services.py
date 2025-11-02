@@ -539,21 +539,37 @@ class ServicioAseguradora:
             log.info(f"EJECUTANDO S13 (Mongo): ABM Cliente - {accion}")
             
             try:
-                # --- ALTA (Crear) ---
                 if accion == 'alta' and datos:
-                    if self.db.clientes.find_one({'id_cliente': datos['id_cliente']}):
-                        log.warning(f"ABM Alta: id_cliente {datos['id_cliente']} ya existe.")
-                        return f"Error: id_cliente {datos['id_cliente']} ya existe."
                     
-                    if 'activo' not in datos:
-                        datos['activo'] = True
-                    if 'vehiculos' not in datos:
-                        datos['vehiculos'] = []
+                    cliente_existente = self.db.clientes.find_one({'id_cliente': datos['id_cliente']})
+                    
+                    if cliente_existente:
+                        # --- CASO 1: Cliente existe Y ESTÁ ACTIVO ---
+                        if cliente_existente.get('activo', False): # .get por si el campo no existiera
+                            log.warning(f"ABM Alta: Cliente {datos['id_cliente']} ya existe y está activo.")
+                            return f"Error: Cliente {datos['id_cliente']} ya existe y se encuentra activo."
+                        
+                        # --- CASO 2: Cliente existe Y ESTÁ INACTIVO ---
+                        else:
+                            log.info(f"ABM Alta: Cliente {datos['id_cliente']} existe pero está inactivo. Reactivando...")
+                            result = self.db.clientes.update_one(
+                                { 'id_cliente': datos['id_cliente'] },
+                                { '$set': { 'activo': True } } # Solo reactivamos, NO actualizamos sus datos
+                            )
+                            return f"Cliente {datos['id_cliente']} ha sido reactivado (datos originales conservados)."
+                    
+                    # --- CASO 3: Cliente NO existe ---
+                    else:
+                        log.info(f"ABM Alta: Cliente {datos['id_cliente']} no existe. Creando nuevo cliente...")
+                        if 'activo' not in datos:
+                            datos['activo'] = True
+                        if 'vehiculos' not in datos:
+                            datos['vehiculos'] = []
+                        
+                        result = self.db.clientes.insert_one(datos)
+                        return f"Cliente NUEVO creado con ID de Mongo: {result.inserted_id}"
 
-                    result = self.db.clientes.insert_one(datos)
-                    return f"Cliente creado con ID de Mongo: {result.inserted_id}"
-
-                # --- MODIFICACIÓN (Actualizar) ---
+                # --- MODIFICACIÓN (Sin cambios) ---
                 elif accion == 'modificar' and cliente_id and datos:
                     result = self.db.clientes.update_one(
                         { 'id_cliente': cliente_id },
@@ -565,7 +581,7 @@ class ServicioAseguradora:
                     
                     return f"Cliente ID {cliente_id} modificado. Documentos afectados: {result.modified_count}"
 
-                # --- BAJA (Borrado Lógico) ---
+                # --- BAJA (Sin cambios) ---
                 elif accion == 'baja' and cliente_id:
                     result = self.db.clientes.update_one(
                         { 'id_cliente': cliente_id },
