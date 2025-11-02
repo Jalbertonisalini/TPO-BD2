@@ -10,8 +10,6 @@ class ServicioAseguradora:
     def __init__(self, db_mongo: Database, r_redis: Redis):
         self.db = db_mongo
         self.r = r_redis
-        log.info("ServicioAseguradora inicializado.")
-
     # --- CONSULTAS ---
 
     def q1_clientes_activos_con_polizas(self):
@@ -588,7 +586,6 @@ class ServicioAseguradora:
                 return f"Error inesperado en ABM Clientes: {e}"
         
     def q14_alta_siniestro(self, datos_siniestro):
-        """14. Alta de nuevos siniestros (Versión Revertida: guarda fechas como string)"""
         log.info("EJECUTANDO S14 (Mongo): Alta Siniestro")
             
         try:

@@ -6,75 +6,30 @@ from pymongo import MongoClient
 import redis
 from pprint import pprint
 
-# --- Hack de Ruta para Imports ---
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 if PROJECT_ROOT not in sys.path:
     sys.path.append(PROJECT_ROOT)
-# ---------------------------------
 
 from src.logger import getLogger
 from src.service.services import ServicioAseguradora
 
-# --- Configuración de Conexión ---
 MONGO_HOST = "mongo"
 REDIS_HOST = "redis"
 DB_NAME = "aseguradora_db"
 
 log = getLogger("QUERY_RUNNER")
 
-# --- Conexión Global ---
 try:
-    log.info("Conectando a bases de datos...")
     mongo_client = MongoClient(MONGO_HOST, 27017, serverSelectionTimeoutMS=5000)
     mongo_client.server_info()
     db = mongo_client[DB_NAME]
     
     redis_client = redis.Redis(host=REDIS_HOST, port=6379, db=0, decode_responses=True)
     redis_client.ping()
-    log.info("Conexiones exitosas.")
     
 except Exception as e:
     log.error(f"FATAL: No se pudo conectar a las bases de datos: {e}")
     sys.exit(1)
-
-# --- Wizards interactivos para Q14 y Q15 (Q13 ya no lo usa) ---
-
-def ejecutar_demo_siniestro(servicio: ServicioAseguradora):
-    """Lanza un mini-wizard interactivo para el alta de Siniestros."""
-    log.info("--- (S14: Alta Siniestro Interactivo) ---")
-    print("\n--- Módulo de Alta de Siniestros ---")
-    
-    try:
-        log.info("Modo: ALTA de Siniestro")
-        print("--- Registrando nuevo siniestro ---")
-        
-        id_siniestro = int(input("  ID Siniestro (ej. 901): ").strip())
-        nro_poliza = input("  Nro. de Póliza asociada (ej. POL1001): ").strip().upper()
-        fecha = input("  Fecha (DD/MM/YYYY): ").strip()
-        tipo = input("  Tipo (ej. Accidente, Robo): ").strip()
-        monto_estimado = float(input("  Monto estimado (ej. 150000): ").strip())
-        descripcion = input("  Descripción: ").strip()
-        estado = input("  Estado (Abierto / Cerrado / En Evaluacion): ").strip()
-        
-        datos_nuevos = {
-            "id_siniestro": id_siniestro,
-            "nro_poliza": nro_poliza,
-            "fecha": fecha,
-            "tipo": tipo,
-            "monto_estimado": monto_estimado,
-            "descripcion": descripcion,
-            "estado": estado
-        }
-        
-        resultado = servicio.q14_alta_siniestro(datos_nuevos)
-        pprint(resultado)
-
-    except ValueError:
-        log.error("Error: ID/Monto deben ser numéricos.")
-        print("Error: El ID Siniestro y el Monto deben ser numéricos.")
-    except Exception as e:
-        log.error(f"Error inesperado en el wizard de Siniestros: {e}")
-        pprint(f"Ocurrió un error: {e}")
 
 def ejecutar_demo_poliza(servicio: ServicioAseguradora):
     """Lanza un mini-wizard interactivo para la Emisión de Pólizas."""
@@ -229,7 +184,33 @@ if __name__ == "__main__":
             log.error(f"Error inesperado en ABM: {e}")
 
     elif query_num == '14':
-        ejecutar_demo_siniestro(servicio)
+        log.info("--- (S14: Alta Siniestro por CLI) ---")
+        try:
+            if len(sys.argv) < 9:
+                log.error("Error ALTA SINIESTRO: Faltan argumentos.")
+                print("Uso: python main.py 14 <id_siniestro> <nro_poliza> <fecha_dd/mm/aaaa> <tipo> <monto> <descripcion> <estado>")
+                sys.exit(1)
+
+            datos_nuevos = {
+                "id_siniestro": int(sys.argv[2]),
+                "nro_poliza": sys.argv[3].upper(),
+                "fecha": sys.argv[4],
+                "tipo": sys.argv[5],
+                "monto_estimado": float(sys.argv[6]),
+                "descripcion": sys.argv[7],
+                "estado": sys.argv[8]
+            }
+            
+            resultado = servicio.q14_alta_siniestro(datos_nuevos)
+            pprint(resultado)
+
+        except IndexError:
+            log.error("Error de Alta Siniestro: Faltan argumentos de línea de comando.")
+            print("Error: Faltan argumentos. Verifique el uso de la Q14.")
+        except ValueError:
+            log.error("Error: id_siniestro o monto_estimado no son numéricos.")
+        except Exception as e:
+            log.error(f"Error inesperado en Alta Siniestro: {e}")
         
     elif query_num == '15':
         ejecutar_demo_poliza(servicio)
