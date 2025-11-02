@@ -37,77 +37,7 @@ except Exception as e:
     log.error(f"FATAL: No se pudo conectar a las bases de datos: {e}")
     sys.exit(1)
 
-# --- (Wizard para ABM Clientes - Q13) ---
-def ejecutar_demo_abm(servicio: ServicioAseguradora):
-    log.info("--- (S13: ABM Clientes Interactivo) ---")
-    print("\n--- Módulo ABM de Clientes ---")
-    
-    accion = input("¿Qué acción desea realizar? (alta / modificar / baja): ").strip().lower()
-
-    try:
-        if accion == 'alta':
-            log.info("Modo: ALTA de Cliente")
-            print("--- Creando nuevo cliente (Formulario Completo) ---")
-            
-            id_cliente = int(input("  ID Cliente (ej. 999): ").strip())
-            nombre = input("  Nombre: ").strip()
-            apellido = input("  Apellido: ").strip()
-            dni = input("  DNI: ").strip()
-            email = input("  Email: ").strip()
-            telefono = input("  Teléfono: ").strip()
-            direccion = input("  Dirección: ").strip()
-            ciudad = input("  Ciudad: ").strip()
-            provincia = input("  Provincia: ").strip()
-            
-            datos_nuevos = {
-                "id_cliente": id_cliente,
-                "nombre": nombre,
-                "apellido": apellido,
-                "dni": dni,
-                "email": email,
-                "telefono": telefono,
-                "direccion": direccion,
-                "ciudad": ciudad,
-                "provincia": provincia,
-                "activo": True,
-                "vehiculos": []
-            }
-            
-            resultado = servicio.q13_abm_clientes(accion='alta', datos=datos_nuevos)
-            pprint(resultado)
-
-        elif accion == 'modificar':
-            log.info("Modo: MODIFICAR Cliente")
-            print("--- Modificando cliente existente ---")
-            
-            cliente_id = int(input("  ID del Cliente a modificar: ").strip())
-            campo = input("  Nombre del campo a modificar (ej. telefono, email, ciudad): ").strip().lower()
-            valor = input(f"  Nuevo valor para '{campo}': ").strip()
-            
-            datos_modificados = { campo: valor }
-            
-            resultado = servicio.q13_abm_clientes(accion='modificar', cliente_id=cliente_id, datos=datos_modificados)
-            pprint(resultado)
-
-        elif accion == 'baja':
-            log.info("Modo: BAJA (lógica) de Cliente")
-            print("--- Dando de baja a un cliente ---")
-            
-            cliente_id = int(input("  ID del Cliente a dar de baja (lógica): ").strip())
-            
-            resultado = servicio.q13_abm_clientes(accion='baja', cliente_id=cliente_id)
-            pprint(resultado)
-            
-        else:
-            log.warning(f"Acción '{accion}' no reconocida.")
-            print(f"Error: Acción no válida. Debe ser 'alta', 'modificar' o 'baja'.")
-
-    except ValueError:
-        log.error("Error: El ID del cliente debe ser un número.")
-        print("Error: El ID del cliente debe ser un número.")
-    except Exception as e:
-        log.error(f"Error inesperado en el wizard ABM: {e}")
-        pprint(f"Ocurrió un error: {e}")
+# --- Wizards interactivos para Q14 y Q15 (Q13 ya no lo usa) ---
 
 def ejecutar_demo_siniestro(servicio: ServicioAseguradora):
     """Lanza un mini-wizard interactivo para el alta de Siniestros."""
@@ -124,7 +54,7 @@ def ejecutar_demo_siniestro(servicio: ServicioAseguradora):
         tipo = input("  Tipo (ej. Accidente, Robo): ").strip()
         monto_estimado = float(input("  Monto estimado (ej. 150000): ").strip())
         descripcion = input("  Descripción: ").strip()
-        estado = input("  Estado (ej. abierto, en proceso): ").strip()
+        estado = input("  Estado (Abierto / Cerrado / En Evaluacion): ").strip()
         
         datos_nuevos = {
             "id_siniestro": id_siniestro,
@@ -155,7 +85,6 @@ def ejecutar_demo_poliza(servicio: ServicioAseguradora):
         log.info("Modo: ALTA de Póliza")
         print("--- Registrando nueva póliza ---")
 
-        # --- CORRECCIONES ---
         nro_poliza = input("  Nro. de Póliza (ej. POL901): ").strip().upper()
         id_cliente = int(input("  ID Cliente asociado: ").strip())
         id_agente = int(input("  ID Agente asociado: ").strip())
@@ -239,9 +168,66 @@ if __name__ == "__main__":
         pprint(servicio.q12_agentes_y_siniestros_asociados())
         
     elif query_num == '13':
-        ejecutar_demo_abm(servicio)
+        log.info("--- (S13: ABM Clientes por CLI) ---")
+        try:
+            accion = sys.argv[2].lower()
 
-    # --- CORREGIDO: Llamamos a los wizards interactivos ---
+            if accion == 'alta':
+                if len(sys.argv) < 12:
+                    log.error("Error ALTA: Faltan argumentos.")
+                    print("Uso: python main.py 13 alta <id_cliente> <nombre> <apellido> <dni> <email> <tel> <dir> <ciudad> <prov>")
+                    sys.exit(1)
+                
+                datos_nuevos = {
+                    "id_cliente": int(sys.argv[3]),
+                    "nombre": sys.argv[4],
+                    "apellido": sys.argv[5],
+                    "dni": sys.argv[6],
+                    "email": sys.argv[7],
+                    "telefono": sys.argv[8],
+                    "direccion": sys.argv[9],
+                    "ciudad": sys.argv[10],
+                    "provincia": sys.argv[11],
+                    "activo": True,
+                    "vehiculos": []
+                }
+                pprint(servicio.q13_abm_clientes(accion='alta', datos=datos_nuevos))
+
+            elif accion == 'modificar':
+                if len(sys.argv) < 6:
+                    log.error("Error MODIFICAR: Faltan argumentos.")
+                    print("Uso: python main.py 13 modificar <id_cliente> <campo> <nuevo_valor>")
+                    sys.exit(1)
+                
+                cliente_id = int(sys.argv[3])
+                campo = sys.argv[4]
+                valor = sys.argv[5]
+                datos_modificados = { campo: valor }
+                pprint(servicio.q13_abm_clientes(accion='modificar', cliente_id=cliente_id, datos=datos_modificados))
+            
+            elif accion == 'baja':
+                if len(sys.argv) < 4:
+                    log.error("Error BAJA: Faltan argumentos.")
+                    print("Uso: python main.py 13 baja <id_cliente>")
+                    sys.exit(1)
+
+                cliente_id = int(sys.argv[3])
+                pprint(servicio.q13_abm_clientes(accion='baja', cliente_id=cliente_id))
+
+            else:
+                log.error(f"Acción '{accion}' no reconocida. Debe ser 'alta', 'modificar' o 'baja'.")
+
+        except IndexError:
+            log.error("Error de ABM: Faltan argumentos de línea de comando.")
+            print("Error: Faltan argumentos. Verifique el uso:")
+            print("  python main.py 13 alta <id> <nombre> ... (9 args + 13 + alta = 11 total)")
+            print("  python main.py 13 modificar <id> <campo> <valor>")
+            print("  python main.py 13 baja <id>")
+        except ValueError:
+            log.error("Error: El id_cliente (argumento 3) debe ser un número.")
+        except Exception as e:
+            log.error(f"Error inesperado en ABM: {e}")
+
     elif query_num == '14':
         ejecutar_demo_siniestro(servicio)
         
