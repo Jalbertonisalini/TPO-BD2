@@ -6,7 +6,6 @@ from pymongo import MongoClient
 import redis
 from pprint import pprint
 
-# --- Hack de Ruta para Imports ---
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 if PROJECT_ROOT not in sys.path:
     sys.path.append(PROJECT_ROOT)
@@ -35,9 +34,6 @@ try:
 except Exception as e:
     log.error(f"FATAL: No se pudo conectar a las bases de datos: {e}")
     sys.exit(1)
-
-# --- No quedan funciones interactivas ---
-
 
 if __name__ == "__main__":
     
@@ -89,7 +85,6 @@ if __name__ == "__main__":
         pprint(servicio.q12_agentes_y_siniestros_asociados())
         
     elif query_num == '13':
-        # --- (S13: ABM Clientes por CLI) ---
         log.info("--- (S13: ABM Clientes por CLI) ---")
         try:
             accion = sys.argv[2].lower()

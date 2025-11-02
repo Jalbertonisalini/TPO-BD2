@@ -541,7 +541,6 @@ class ServicioAseguradora:
             try:
                 # --- ALTA (Crear) ---
                 if accion == 'alta' and datos:
-                    # Verificación: Asegurarse de que el id_cliente no exista ya
                     if self.db.clientes.find_one({'id_cliente': datos['id_cliente']}):
                         log.warning(f"ABM Alta: id_cliente {datos['id_cliente']} ya existe.")
                         return f"Error: id_cliente {datos['id_cliente']} ya existe."

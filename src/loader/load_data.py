@@ -103,7 +103,7 @@ try:
 
         if poliza['estado'].lower() == 'activa': 
             try:
-                # (Tenemos que parsear la fecha aquí solo para Redis)
+                # (Tenemos que parsear la fecha solo para Redis)
                 fecha_inicio_dt = datetime.strptime(poliza['fecha_inicio'], '%d/%m/%Y') 
                 timestamp = int(time.mktime(fecha_inicio_dt.timetuple()))
                 
