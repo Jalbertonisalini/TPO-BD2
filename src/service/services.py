@@ -3,6 +3,8 @@
 from src.logger import getLogger
 from pymongo.database import Database
 from redis import Redis
+from datetime import datetime, timedelta 
+import time
 
 log = getLogger(__name__)
 
@@ -597,6 +599,19 @@ class ServicioAseguradora:
             if self.db.siniestros.find_one({'id_siniestro': datos_siniestro['id_siniestro']}):
                 log.warning(f"Alta Siniestro: id_siniestro {datos_siniestro['id_siniestro']} ya existe.")
                 return "Error: id_siniestro ya existe."
+
+            ESTADOS_VALIDOS = ['Abierto', 'Cerrado', 'En Evaluacion']
+            estado_normalizado = datos_siniestro['estado'].strip().title()
+            if estado_normalizado not in ESTADOS_VALIDOS:
+                log.warning(f"Alta Siniestro: Estado '{datos_siniestro['estado']}' no es válido.")
+                return f"Error: Estado no válido. Debe ser uno de: {ESTADOS_VALIDOS}"
+            datos_siniestro['estado'] = estado_normalizado
+            
+            try:
+                datetime.strptime(datos_siniestro['fecha'], '%d/%m/%Y')
+            except ValueError:
+                log.error(f"Alta Siniestro: Formato de fecha incorrecto. Use DD/MM/YYYY.")
+                return "Error: Formato de fecha incorrecto. Use DD/MM/YYYY."
                 
             result = self.db.siniestros.insert_one(datos_siniestro)
             return f"Siniestro creado con ID de Mongo: {result.inserted_id}"
@@ -606,53 +621,59 @@ class ServicioAseguradora:
             return f"Error en Alta Siniestro: {e}"
         
     def q15_emitir_poliza(self, datos_poliza):
-        """15. Emisión de Póliza (Versión Revertida: guarda fechas como string)"""
-        log.info("EJECUTANDO S15 (Mongo + Redis): Emisión de Póliza")
-        
-        try:
-            # 1. Validaciones
-            cliente = self.db.clientes.find_one({ 'id_cliente': datos_poliza['id_cliente'] })
-            agente = self.db.agentes.find_one({ 'id_agente': datos_poliza['id_agente'] })
+            log.info("EJECUTANDO S15 (Mongo + Redis): Emisión de Póliza")
             
-            if not cliente or not agente:
-                return "Error: Cliente o Agente no existen."
-            if not cliente['activo'] or not agente['activo']:
-                return "Error: Cliente o Agente no están activos."
-            
-            if self.db.polizas.find_one({'nro_poliza': datos_poliza['nro_poliza']}):
-                return "Error: nro_poliza ya existe."
-
-            # 2. --- CONVERSIÓN DE FECHA ELIMINADA ---
-            # Las fechas se guardan como string, tal como vienen de 'datos_poliza'
-
-            # 3. Insertar en Mongo
-            result = self.db.polizas.insert_one(datos_poliza)
-            poliza_id_mongo = result.inserted_id
-            log.info(f"Póliza {datos_poliza['nro_poliza']} insertada en MongoDB.")
-            
-            # 4. Actualizar Redis
             try:
-                self.r.hincrby('agente:stats', str(datos_poliza['id_agente']), 1)
+                cliente = self.db.clientes.find_one({ 'id_cliente': datos_poliza['id_cliente'] })
+                agente = self.db.agentes.find_one({ 'id_agente': datos_poliza['id_agente'] })
                 
-                self.r.zincrby('ranking:clientes:cobertura', 
-                               datos_poliza['cobertura_total'], 
-                               str(datos_poliza['id_cliente']))
+                if not cliente or not agente:
+                    return "Error: Cliente o Agente no existen."
+                if not cliente['activo'] or not agente['activo']:
+                    return "Error: Cliente o Agente no están activos."
                 
-                if str(datos_poliza['estado']).lower() == 'activa':
-                    # --- ¡ADVERTENCIA! ESTE BLOQUE AHORA FALLARÁ ---
-                    # Necesita convertir el string a datetime para sacar el timestamp
-                    # (ver explicación abajo)
-                    fecha_dt_para_redis = datetime.strptime(datos_poliza['fecha_inicio'], '%d/%m/%Y')
-                    timestamp = int(time.mktime(fecha_dt_para_redis.timetuple()))
-                    self.r.zadd('idx:polizas:activas', {str(datos_poliza['nro_poliza']): timestamp})
+                if self.db.polizas.find_one({'nro_poliza': datos_poliza['nro_poliza']}):
+                    return "Error: nro_poliza ya existe."
+
+                try:
+                    fecha_inicio_dt = datetime.strptime(datos_poliza['fecha_inicio'], '%d/%m/%Y')
+                    datetime.strptime(datos_poliza['fecha_fin'], '%d/%m/%Y')
+                except ValueError:
+                    log.error(f"Emisión Póliza: Formato de fecha incorrecto (ej: {datos_poliza['fecha_inicio']}). Use DD/MM/YYYY.")
+                    return "Error: Formato de fecha incorrecto. Use DD/MM/YYYY."
+
+                ESTADOS_VALIDOS = ['Activa', 'Vencida', 'Suspendida']
                 
-                log.info(f"Póliza {datos_poliza['nro_poliza']} actualizada en vistas de Redis.")
-                return f"Póliza emitida. Mongo ID: {poliza_id_mongo}. Vistas de Redis actualizadas."
+                estado_normalizado = datos_poliza['estado'].strip().title()
                 
-            except Exception as e_redis:
-                log.error(f"Error CRÍTICO actualizando Redis. Póliza {poliza_id_mongo} insertada en Mongo pero Redis falló: {e_redis}")
-                return f"Error CRÍTICO: Póliza insertada en Mongo ({poliza_id_mongo}) pero falló la actualización en Redis."
-        
-        except Exception as e:
-            log.error(f"Error en Emisión de Póliza: {e}")
-            return f"Error en Emisión de Póliza: {e}"
+                if estado_normalizado not in ESTADOS_VALIDOS:
+                    log.warning(f"Emisión Póliza: Estado '{datos_poliza['estado']}' no es válido.")
+                    return f"Error: Estado no válido. Debe ser uno de: {ESTADOS_VALIDOS}"
+                
+                datos_poliza['estado'] = estado_normalizado
+
+                result = self.db.polizas.insert_one(datos_poliza)
+                poliza_id_mongo = result.inserted_id
+                log.info(f"Póliza {datos_poliza['nro_poliza']} insertada en MongoDB.")
+                
+                try:
+                    self.r.hincrby('agente:stats', str(datos_poliza['id_agente']), 1)
+                    
+                    self.r.zincrby('ranking:clientes:cobertura', 
+                                datos_poliza['cobertura_total'], 
+                                str(datos_poliza['id_cliente']))
+                    
+                    if estado_normalizado.lower() == 'activa':
+                        timestamp = int(time.mktime(fecha_inicio_dt.timetuple()))
+                        self.r.zadd('idx:polizas:activas', {str(datos_poliza['nro_poliza']): timestamp})
+                    
+                    log.info(f"Póliza {datos_poliza['nro_poliza']} actualizada en vistas de Redis.")
+                    return f"Póliza emitida. Mongo ID: {poliza_id_mongo}. Vistas de Redis actualizadas."
+                    
+                except Exception as e_redis:
+                    log.error(f"Error CRÍTICO actualizando Redis. Póliza {poliza_id_mongo} insertada en Mongo pero Redis falló: {e_redis}")
+                    return f"Error CRÍTICO: Póliza insertada en Mongo ({poliza_id_mongo}) pero falló la actualización en Redis."
+            
+            except Exception as e:
+                log.error(f"Error en Emisión de Póliza: {e}")
+                return f"Error en Emisión de Póliza: {e}"

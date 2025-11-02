@@ -6,20 +6,25 @@ from pymongo import MongoClient
 import redis
 from pprint import pprint
 
+# --- Hack de Ruta para Imports ---
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 if PROJECT_ROOT not in sys.path:
     sys.path.append(PROJECT_ROOT)
+# ---------------------------------
 
 from src.logger import getLogger
 from src.service.services import ServicioAseguradora
 
+# --- Configuración de Conexión ---
 MONGO_HOST = "mongo"
 REDIS_HOST = "redis"
 DB_NAME = "aseguradora_db"
 
 log = getLogger("QUERY_RUNNER")
 
+# --- Conexión Global ---
 try:
+    log.info("Conectando a bases de datos...")
     mongo_client = MongoClient(MONGO_HOST, 27017, serverSelectionTimeoutMS=5000)
     mongo_client.server_info()
     db = mongo_client[DB_NAME]
@@ -31,46 +36,7 @@ except Exception as e:
     log.error(f"FATAL: No se pudo conectar a las bases de datos: {e}")
     sys.exit(1)
 
-def ejecutar_demo_poliza(servicio: ServicioAseguradora):
-    """Lanza un mini-wizard interactivo para la Emisión de Pólizas."""
-    log.info("--- (S15: Emisión de Póliza Interactivo) ---")
-    print("\n--- Módulo de Emisión de Pólizas ---")
-    
-    try:
-        log.info("Modo: ALTA de Póliza")
-        print("--- Registrando nueva póliza ---")
-
-        nro_poliza = input("  Nro. de Póliza (ej. POL901): ").strip().upper()
-        id_cliente = int(input("  ID Cliente asociado: ").strip())
-        id_agente = int(input("  ID Agente asociado: ").strip())
-        tipo = input("  Tipo (ej. Auto, Vida): ").strip()
-        fecha_inicio = input("  Fecha de Inicio (DD/MM/YYYY): ").strip()
-        fecha_fin = input("  Fecha de Fin (DD/MM/YYYY): ").strip()
-        prima_mensual = float(input("  Prima Mensual: ").strip())
-        cobertura_total = float(input("  Cobertura Total: ").strip())
-        estado = input("  Estado (ej. activa, suspendida): ").strip()
-
-        datos_nuevos = {
-            "nro_poliza": nro_poliza,
-            "id_cliente": id_cliente,
-            "tipo": tipo,
-            "fecha_inicio": fecha_inicio,
-            "fecha_fin": fecha_fin,
-            "prima_mensual": prima_mensual,
-            "cobertura_total": cobertura_total,
-            "id_agente": id_agente,
-            "estado": estado
-        }
-        
-        resultado = servicio.q15_emitir_poliza(datos_nuevos)
-        pprint(resultado)
-
-    except ValueError:
-        log.error("Error: IDs/Montos deben ser numéricos.")
-        print("Error: IDs y Montos deben ser numéricos.")
-    except Exception as e:
-        log.error(f"Error inesperado en el wizard de Pólizas: {e}")
-        pprint(f"Ocurrió un error: {e}")
+# --- No quedan funciones interactivas ---
 
 
 if __name__ == "__main__":
@@ -123,6 +89,7 @@ if __name__ == "__main__":
         pprint(servicio.q12_agentes_y_siniestros_asociados())
         
     elif query_num == '13':
+        # --- (S13: ABM Clientes por CLI) ---
         log.info("--- (S13: ABM Clientes por CLI) ---")
         try:
             accion = sys.argv[2].lower()
@@ -174,10 +141,7 @@ if __name__ == "__main__":
 
         except IndexError:
             log.error("Error de ABM: Faltan argumentos de línea de comando.")
-            print("Error: Faltan argumentos. Verifique el uso:")
-            print("  python main.py 13 alta <id> <nombre> ... (9 args + 13 + alta = 11 total)")
-            print("  python main.py 13 modificar <id> <campo> <valor>")
-            print("  python main.py 13 baja <id>")
+            print("Error: Faltan argumentos. Verifique el uso de la Q13.")
         except ValueError:
             log.error("Error: El id_cliente (argumento 3) debe ser un número.")
         except Exception as e:
@@ -188,7 +152,7 @@ if __name__ == "__main__":
         try:
             if len(sys.argv) < 9:
                 log.error("Error ALTA SINIESTRO: Faltan argumentos.")
-                print("Uso: python main.py 14 <id_siniestro> <nro_poliza> <fecha_dd/mm/aaaa> <tipo> <monto> <descripcion> <estado>")
+                print("Uso: python main.py 14 <id_siniestro> <nro_poliza> <fecha_DD/MM/YYYY> <tipo> <monto> <descripcion> <estado>")
                 sys.exit(1)
 
             datos_nuevos = {
@@ -206,14 +170,42 @@ if __name__ == "__main__":
 
         except IndexError:
             log.error("Error de Alta Siniestro: Faltan argumentos de línea de comando.")
-            print("Error: Faltan argumentos. Verifique el uso de la Q14.")
+            print("Uso: python main.py 14 <id_siniestro> <nro_poliza> <fecha_DD/MM/YYYY> <tipo> <monto> <descripcion> <estado>")
         except ValueError:
             log.error("Error: id_siniestro o monto_estimado no son numéricos.")
         except Exception as e:
             log.error(f"Error inesperado en Alta Siniestro: {e}")
-        
+
     elif query_num == '15':
-        ejecutar_demo_poliza(servicio)
+        log.info("--- (S15: Emisión de Póliza por CLI) ---")
+        try:
+            if len(sys.argv) < 11:
+                log.error("Error EMITIR PÓLIZA: Faltan argumentos.")
+                print("Uso: python main.py 15 <nro_poliza> <id_cliente> <id_agente> <tipo> <fecha_inicio_DD/MM/YYYY> <fecha_fin_DD/MM/YYYY> <prima_mensual> <cobertura_total> <estado>")
+                sys.exit(1)
+
+            datos_nuevos = {
+                "nro_poliza": sys.argv[2].upper(),
+                "id_cliente": int(sys.argv[3]),
+                "id_agente": int(sys.argv[4]),
+                "tipo": sys.argv[5],
+                "fecha_inicio": sys.argv[6],
+                "fecha_fin": sys.argv[7],
+                "prima_mensual": float(sys.argv[8]),
+                "cobertura_total": float(sys.argv[9]),
+                "estado": sys.argv[10]
+            }
+        
+            resultado = servicio.q15_emitir_poliza(datos_nuevos)
+            pprint(resultado)
+            
+        except IndexError:
+            log.error("Error de Emisión Póliza: Faltan argumentos de línea de comando.")
+            print("Uso: python main.py 15 <nro_poliza> <id_cliente> <id_agente> <tipo> <fecha_inicio_DD/MM/YYYY> <fecha_fin_DD/MM/YYYY> <prima_mensual> <cobertura_total> <estado>")
+        except ValueError:
+            log.error("Error: IDs o montos no son numéricos.")
+        except Exception as e:
+            log.error(f"Error inesperado en Emisión Póliza: {e}")
     
     else:
         log.error(f"Número de query '{query_num}' no válido. Debe ser de 1 a 15.")
