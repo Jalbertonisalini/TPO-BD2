@@ -554,7 +554,7 @@ class ServicioAseguradora:
                             log.info(f"ABM Alta: Cliente {datos['id_cliente']} existe pero está inactivo. Reactivando...")
                             result = self.db.clientes.update_one(
                                 { 'id_cliente': datos['id_cliente'] },
-                                { '$set': { 'activo': True } } # Solo reactivamos, NO actualizamos sus datos
+                                { '$set': { 'activo': True } } # Se reactiva (decisión del equipo)
                             )
                             return f"Cliente {datos['id_cliente']} ha sido reactivado (datos originales conservados)."
                     
@@ -569,7 +569,7 @@ class ServicioAseguradora:
                         result = self.db.clientes.insert_one(datos)
                         return f"Cliente NUEVO creado con ID de Mongo: {result.inserted_id}"
 
-                # --- MODIFICACIÓN (Sin cambios) ---
+                # --- MODIFICACIÓN ---
                 elif accion == 'modificar' and cliente_id and datos:
                     result = self.db.clientes.update_one(
                         { 'id_cliente': cliente_id },
@@ -581,7 +581,7 @@ class ServicioAseguradora:
                     
                     return f"Cliente ID {cliente_id} modificado. Documentos afectados: {result.modified_count}"
 
-                # --- BAJA (Sin cambios) ---
+                # --- BAJA ---
                 elif accion == 'baja' and cliente_id:
                     result = self.db.clientes.update_one(
                         { 'id_cliente': cliente_id },
