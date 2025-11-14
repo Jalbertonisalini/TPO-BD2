@@ -1,8 +1,8 @@
-# 📄 Trabajo Práctico: Sistema de Gestión de Aseguradoras (BD2)
+# Trabajo Práctico: Sistema de Gestión de Aseguradoras (BD2)
 
 Este proyecto implementa un sistema de backoffice para una compañía de seguros utilizando una arquitectura de persistencia políglota (las bases electas fueron **MongoDB** y **Redis**) en un entorno de desarrollo autocontenido de **GitHub Codespaces**.
 
-## 🚀 Cómo Iniciar el Entorno
+## Cómo Iniciar el Entorno
 
 Este repositorio está 100% configurado para GitHub Codespaces. No se necesita ninguna instalación local.
 
@@ -15,7 +15,7 @@ Este repositorio está 100% configurado para GitHub Codespaces. No se necesita n
 
 ---
 
-## ⚙️ Ejecución del Proyecto
+## Ejecución del Proyecto
 
 Todo el proyecto se ejecuta desde la terminal de Codespaces.
 
@@ -34,22 +34,19 @@ Espera a que el script termine y muestre el mensaje "¡Carga de datos completada
 Todas las consultas y servicios se ejecutan usando `main.py` desde la terminal.
 
 ### Consultas de lectura (1-12)
-Estas consultas solo reciben el numero de query como argumento 
+Estas consultas solo reciben el numero de query como argumento:
+
+```bash
+python main.py <numero_consulta>
+```
+
+- Ejemplo:
 
 ```bash
 python main.py 1
-python main.py 2
-python main.py 3
-python main.py 4
-python main.py 5
-python main.py 6
-python main.py 7
-python main.py 8
-python main.py 9
-python main.py 10
-python main.py 11
-python main.py 12
 ```
+Esto ejecuta la consulta número 1.
+Para cualquier otra consulta, simplemente reemplazá el número (1 al 12).
 
 ### Servicios de escritura (13-15)
 Estos servicios requieren argumentos adicionales.
