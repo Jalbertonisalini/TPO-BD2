@@ -1,6 +1,6 @@
 # 📄 Trabajo Práctico: Sistema de Gestión de Aseguradoras (BD2)
 
-Este proyecto implementa un sistema de backoffice para una compañía de seguros utilizando una arquitectura de persistencia políglota (**MongoDB** y **Redis**) en un entorno de desarrollo autocontenido de **GitHub Codespaces**.
+Este proyecto implementa un sistema de backoffice para una compañía de seguros utilizando una arquitectura de persistencia políglota (las bases electas fueron **MongoDB** y **Redis**) en un entorno de desarrollo autocontenido de **GitHub Codespaces**.
 
 ## 🚀 Cómo Iniciar el Entorno
 
